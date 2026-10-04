@@ -96,7 +96,8 @@ public class SecurityConfig {
 
         configuration.setAllowedOriginPatterns(
                 List.of(
-                        "http://localhost:*"
+                        "http://localhost:*",
+                        "https://divyaaa7x.github.io"
                 )
         );
 
