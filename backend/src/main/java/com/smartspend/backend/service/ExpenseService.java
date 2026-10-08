@@ -57,19 +57,24 @@ public class ExpenseService {
 
         /*
          * Automatically award the First Expense badge.
+         * Best effort: a lost badge race must never fail
+         * the expense creation itself.
          */
-        if (firstExpense &&
-                !badgeService.hasBadge(
-                        expense.getUser().getId(),
-                        "FIRST_EXPENSE")) {
+        try {
+            if (firstExpense &&
+                    !badgeService.hasBadge(
+                            expense.getUser().getId(),
+                            "FIRST_EXPENSE")) {
 
-            com.smartspend.backend.entity.Badge badge =
-                    new com.smartspend.backend.entity.Badge(
-                            expense.getUser(),
-                            "FIRST_EXPENSE"
-                    );
+                com.smartspend.backend.entity.Badge badge =
+                        new com.smartspend.backend.entity.Badge(
+                                expense.getUser(),
+                                "FIRST_EXPENSE"
+                        );
 
-            badgeService.saveBadge(badge);
+                badgeService.saveBadge(badge);
+            }
+        } catch (Exception ignored) {
         }
 
         return savedExpense;

@@ -151,6 +151,13 @@ public class BudgetController {
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
+        if (request.getCategory() == null
+                || request.getCategory().getId() == null) {
+            throw new IllegalArgumentException(
+                    "Category id is required"
+            );
+        }
+
         // Check for duplicate budget
         if (budgetService.getBudgetByUserAndCategory(user.getId(), request.getCategory().getId()).isPresent()) {
             throw new RuntimeException("Budget for this category already exists");
@@ -164,8 +171,12 @@ public class BudgetController {
 
         Budget budget = new Budget(user, category, request.getMonthlyLimit());
 
-        Budget savedBudget =
-                budgetService.saveBudget(budget);
+        Budget savedBudget;
+        try {
+            savedBudget = budgetService.saveBudget(budget);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new RuntimeException("Budget for this category already exists");
+        }
 
         return ResponseEntity.ok(savedBudget);
     }
@@ -197,6 +208,13 @@ public class BudgetController {
         existingBudget.setMonthlyLimit(
                 request.getMonthlyLimit()
         );
+
+        if (request.getCategory() == null
+                || request.getCategory().getId() == null) {
+            throw new IllegalArgumentException(
+                    "Category id is required"
+            );
+        }
 
         Category category =
                 categoryService.getCategoryById(

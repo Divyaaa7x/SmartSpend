@@ -12,9 +12,13 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "badges")
+@Table(name = "badges",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_badges_user_type",
+                columnNames = { "user_id", "badge_type" }))
 public class Badge {
 
     @Id

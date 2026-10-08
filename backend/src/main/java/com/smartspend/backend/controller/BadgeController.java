@@ -63,10 +63,23 @@ public class BadgeController {
 
         User user = getLoggedInUser(authentication);
 
-        badge.setUser(user);
+        // Ignore all client-supplied identity fields to prevent
+        // mass assignment: id, user and earnedAt are server-assigned.
+        if (badge.getBadgeType() == null
+                || badge.getBadgeType().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Badge type is required"
+            );
+        }
 
-        Badge savedBadge =
-                badgeService.saveBadge(badge);
+        Badge toSave = new Badge(user, badge.getBadgeType());
+
+        Badge savedBadge;
+        try {
+            savedBadge = badgeService.saveBadge(toSave);
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new RuntimeException("Badge already earned");
+        }
 
         return ResponseEntity.ok(savedBadge);
     }

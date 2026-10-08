@@ -11,9 +11,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "budgets")
+@Table(name = "budgets",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_budgets_user_category",
+                columnNames = { "user_id", "category_id" }))
 public class Budget {
 
     @Id

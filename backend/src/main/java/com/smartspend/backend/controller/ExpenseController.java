@@ -350,6 +350,13 @@ public class ExpenseController {
                                         "User not found"
                                 ));
 
+        if (request.getCategory() == null
+                || request.getCategory().getId() == null) {
+            throw new IllegalArgumentException(
+                    "Category id is required"
+            );
+        }
+
         Category category =
                 categoryService
                         .getCategoryById(request.getCategory().getId())
@@ -370,20 +377,25 @@ public class ExpenseController {
                 expenseService.saveExpense(expense);
 
 
-        // Make sure First Expense badge exists
-        if (!badgeService.hasBadge(
-                user.getId(),
-                "FIRST_EXPENSE")) {
+        // Make sure First Expense badge exists.
+        // Best effort: a lost badge race must never fail
+        // the expense creation itself.
+        try {
+            if (!badgeService.hasBadge(
+                    user.getId(),
+                    "FIRST_EXPENSE")) {
 
-            Badge firstExpenseBadge =
-                    new Badge(
-                            user,
-                            "FIRST_EXPENSE"
-                    );
+                Badge firstExpenseBadge =
+                        new Badge(
+                                user,
+                                "FIRST_EXPENSE"
+                        );
 
-            badgeService.saveBadge(
-                    firstExpenseBadge
-            );
+                badgeService.saveBadge(
+                        firstExpenseBadge
+                );
+            }
+        } catch (Exception ignored) {
         }
 
         return ResponseEntity.ok(
@@ -451,6 +463,13 @@ public class ExpenseController {
 
 
         // Update category
+        if (request.getCategory() == null
+                || request.getCategory().getId() == null) {
+            throw new IllegalArgumentException(
+                    "Category id is required"
+            );
+        }
+
         Category category =
                 categoryService
                         .getCategoryById(
