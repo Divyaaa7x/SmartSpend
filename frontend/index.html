@@ -2,10 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/SmartSpend/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>SmartSpend</title>
+
+    <script>
+      (function () {
+        const redirect = sessionStorage.getItem("smartspend-redirect");
+
+        if (redirect) {
+          sessionStorage.removeItem("smartspend-redirect");
+
+          try {
+            const saved = JSON.parse(redirect);
+            const route = saved.route ? "/" + saved.route : "";
+
+            history.replaceState(
+              null,
+              "",
+              "/SmartSpend" + route + (saved.query || "") + (saved.hash || "")
+            );
+          } catch (error) {
+            console.error("Could not restore the saved route.", error);
+          }
+        }
+      })();
+    </script>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>

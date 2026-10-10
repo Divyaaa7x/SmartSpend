@@ -1,4 +1,12 @@
 import { useEffect, useState } from "react";
+import {
+    BrowserRouter,
+    Navigate,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate
+} from "react-router-dom";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -12,8 +20,17 @@ import { ConfirmationProvider } from "./components/ConfirmationContext";
 import "./App.css";
 
 function App() {
+    return (
+        <BrowserRouter basename="/SmartSpend">
+            <AppContent />
+        </BrowserRouter>
+    );
+}
 
-    // Check both remembered login and current session login
+function AppContent() {
+    const navigate = useNavigate();
+    const location = useLocation();
+
     const storedToken =
         localStorage.getItem("token") ||
         sessionStorage.getItem("token");
@@ -28,62 +45,55 @@ function App() {
         sessionStorage.getItem("userEmail") ||
         "";
 
-    // Check saved theme
     const savedTheme =
-        localStorage.getItem("smartspend-theme") ||
-        "light";
-
-    const [page, setPage] = useState(
-        storedToken
-            ? "dashboard"
-            : "login"
-    );
+        localStorage.getItem("smartspend-theme") || "light";
 
     const [user, setUser] = useState({
         name: storedName,
         email: storedEmail
     });
 
-    const [theme, setTheme] = useState(
-        savedTheme
-    );
-
+    const [theme, setTheme] = useState(savedTheme);
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // Apply theme to the complete application
+    const currentPath = location.pathname.toLowerCase();
+    const isAuthenticated = Boolean(
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("token")
+    );
+
     useEffect(() => {
-
-        document.body.classList.remove(
-            "light-theme",
-            "dark-theme"
-        );
-
+        document.body.classList.remove("light-theme", "dark-theme");
         document.body.classList.add(
-            theme === "dark"
-                ? "dark-theme"
-                : "light-theme"
+            theme === "dark" ? "dark-theme" : "light-theme"
         );
-
-        localStorage.setItem(
-            "smartspend-theme",
-            theme
-        );
-
+        localStorage.setItem("smartspend-theme", theme);
     }, [theme]);
 
-    const toggleTheme = () => {
+    useEffect(() => {
+        if (isAuthenticated) {
+            setUser({
+                name:
+                    localStorage.getItem("userName") ||
+                    sessionStorage.getItem("userName") ||
+                    "",
+                email:
+                    localStorage.getItem("userEmail") ||
+                    sessionStorage.getItem("userEmail") ||
+                    ""
+            });
+        }
+    }, [isAuthenticated, location.pathname]);
 
+    const toggleTheme = () => {
         setTheme((currentTheme) =>
-            currentTheme === "light"
-                ? "dark"
-                : "light"
+            currentTheme === "light" ? "dark" : "light"
         );
     };
 
     const handleLogin = (data) => {
-
         if (data === "signup") {
-            setPage("signup");
+            navigate("/Signup");
             return;
         }
 
@@ -92,13 +102,12 @@ function App() {
             email: data.email
         });
 
-        setPage("dashboard");
+        navigate("/Dashboard", { replace: true });
     };
 
     const handleSignup = (data) => {
-
         if (data === "login") {
-            setPage("login");
+            navigate("/Login");
             return;
         }
 
@@ -107,53 +116,126 @@ function App() {
             email: data.email
         });
 
-        setPage("dashboard");
+        navigate("/Dashboard", { replace: true });
     };
 
     const handleLogout = () => {
-
-        // Clear remembered login
-        localStorage.removeItem("token");
-        localStorage.removeItem("userId");
-        localStorage.removeItem("userName");
-        localStorage.removeItem("userEmail");
-
-        // Clear current-session login
-        sessionStorage.removeItem("token");
-        sessionStorage.removeItem("userId");
-        sessionStorage.removeItem("userName");
-        sessionStorage.removeItem("userEmail");
-
-        setUser({
-            name: "",
-            email: ""
+        [
+            "token",
+            "userId",
+            "userName",
+            "userEmail"
+        ].forEach((key) => {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
         });
 
-        setPage("login");
+        setUser({ name: "", email: "" });
         setSidebarOpen(false);
+        navigate("/Login", { replace: true });
     };
 
-    if (page === "login") {
+    const publicPage =
+        currentPath === "/login" || currentPath === "/signup";
 
-        return (
-            <Login
-                onLogin={handleLogin}
-                theme={theme}
-                onToggleTheme={toggleTheme}
-            />
-        );
+    if (!isAuthenticated && !publicPage) {
+        return <Navigate to="/Login" replace />;
     }
 
-    if (page === "signup") {
-
-        return (
-            <Signup
-                onSignup={handleSignup}
-                theme={theme}
-                onToggleTheme={toggleTheme}
-            />
-        );
+    if (isAuthenticated && publicPage) {
+        return <Navigate to="/Dashboard" replace />;
     }
+
+    return (
+        <Routes>
+            <Route
+                path="/"
+                element={
+                    <Navigate
+                        to={isAuthenticated ? "/Dashboard" : "/Login"}
+                        replace
+                    />
+                }
+            />
+
+            <Route
+                path="/Login"
+                element={
+                    <Login
+                        onLogin={handleLogin}
+                        theme={theme}
+                        onToggleTheme={toggleTheme}
+                    />
+                }
+            />
+
+            <Route
+                path="/Signup"
+                element={
+                    <Signup
+                        onSignup={handleSignup}
+                        theme={theme}
+                        onToggleTheme={toggleTheme}
+                    />
+                }
+            />
+
+            <Route
+                path="*"
+                element={
+                    <AuthenticatedLayout
+                        user={user}
+                        theme={theme}
+                        toggleTheme={toggleTheme}
+                        onLogout={handleLogout}
+                        sidebarOpen={sidebarOpen}
+                        setSidebarOpen={setSidebarOpen}
+                    />
+                }
+            />
+        </Routes>
+    );
+}
+
+function AuthenticatedLayout({
+    user,
+    theme,
+    toggleTheme,
+    onLogout,
+    sidebarOpen,
+    setSidebarOpen
+}) {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const page = location.pathname
+        .split("/")
+        .filter(Boolean)
+        .pop()
+        ?.toLowerCase();
+
+    const pageComponents = {
+        dashboard: Dashboard,
+        expenses: Expenses,
+        budgets: Budgets,
+        badges: Badges,
+        profile: Profile
+    };
+
+    const PageComponent = pageComponents[page];
+
+    if (!PageComponent) {
+        return <Navigate to="/Dashboard" replace />;
+    }
+
+    const handleNavigate = (nextPage) => {
+        navigate(
+            "/" +
+            nextPage.charAt(0).toUpperCase() +
+            nextPage.slice(1)
+        );
+        setSidebarOpen(false);
+    };
 
     return (
         <ConfirmationProvider>
@@ -161,8 +243,8 @@ function App() {
                 <Sidebar
                     user={user}
                     currentPage={page}
-                    onNavigate={setPage}
-                    onLogout={handleLogout}
+                    onNavigate={handleNavigate}
+                    onLogout={onLogout}
                     isOpen={sidebarOpen}
                     onClose={() => setSidebarOpen(false)}
                 />
@@ -170,52 +252,18 @@ function App() {
                 <div className="app-main">
                     <TopNav
                         user={user}
-                        onLogout={handleLogout}
+                        onLogout={onLogout}
                         theme={theme}
                         onToggleTheme={toggleTheme}
                         onMenuClick={() => setSidebarOpen(true)}
                     />
 
                     <main className="app-content">
-                        {page === "dashboard" && (
-                            <Dashboard
-                                user={user}
-                                onLogout={handleLogout}
-                                onNavigate={setPage}
-                            />
-                        )}
-
-                        {page === "expenses" && (
-                            <Expenses
-                                user={user}
-                                onLogout={handleLogout}
-                                onNavigate={setPage}
-                            />
-                        )}
-
-                        {page === "budgets" && (
-                            <Budgets
-                                user={user}
-                                onLogout={handleLogout}
-                                onNavigate={setPage}
-                            />
-                        )}
-
-                        {page === "badges" && (
-                            <Badges
-                                user={user}
-                                onLogout={handleLogout}
-                                onNavigate={setPage}
-                            />
-                        )}
-
-                        {page === "profile" && (
-                            <Profile
-                                user={user}
-                                onLogout={handleLogout}
-                                onNavigate={setPage}
-                            />
-                        )}
+                        <PageComponent
+                            user={user}
+                            onLogout={onLogout}
+                            onNavigate={handleNavigate}
+                        />
                     </main>
                 </div>
 
@@ -260,6 +308,7 @@ function Sidebar({
                         <span>Finance Tracker</span>
                     </div>
                 </div>
+
                 <button
                     className="sidebar-close"
                     onClick={onClose}
@@ -273,7 +322,9 @@ function Sidebar({
                 {navItems.map((item) => (
                     <button
                         key={item.id}
-                        className={`nav-item ${currentPage === item.id ? "active" : ""}`}
+                        className={`nav-item ${
+                            currentPage === item.id ? "active" : ""
+                        }`}
                         onClick={() => {
                             onNavigate(item.id);
                             onClose();
@@ -290,16 +341,14 @@ function Sidebar({
                     <div className="user-avatar">
                         {user?.name?.charAt(0)?.toUpperCase() || "U"}
                     </div>
+
                     <div className="user-mini-info">
                         <strong>{user?.name || "User"}</strong>
                         <span>{user?.email || ""}</span>
                     </div>
                 </div>
 
-                <button
-                    className="logout-button"
-                    onClick={onLogout}
-                >
+                <button className="logout-button" onClick={onLogout}>
                     🚪 Logout
                 </button>
             </div>
@@ -332,18 +381,23 @@ function TopNav({
                 <button
                     className="theme-toggle-button"
                     onClick={onToggleTheme}
-                    title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-                    aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                    title={
+                        theme === "light"
+                            ? "Switch to dark mode"
+                            : "Switch to light mode"
+                    }
+                    aria-label={
+                        theme === "light"
+                            ? "Switch to dark mode"
+                            : "Switch to light mode"
+                    }
                 >
                     {theme === "light" ? "🌙" : "☀️"}
                 </button>
 
                 <span className="top-nav-user">{user.name}</span>
 
-                <button
-                    className="top-nav-logout"
-                    onClick={onLogout}
-                >
+                <button className="top-nav-logout" onClick={onLogout}>
                     Logout
                 </button>
             </div>
